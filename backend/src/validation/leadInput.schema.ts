@@ -12,8 +12,8 @@ export const LeadInputSchema = z.object({
         const suspiciousPatterns = [
           /ignore\s+(previous|all)\s+(instructions|prompts)/i,
           /system\s*:\s*you\s+are/i,
-          /\[INST\]|\[/INST\]/i, // Common prompt injection markers
-          /<\|.*?\|>/i, // Template injection markers
+          /\[INST\]|\[\/INST\]/i,
+          /<\|.*?\|>/i,
         ];
         return !suspiciousPatterns.some((pattern) => pattern.test(msg));
       },
