@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Request validation schema
-export const LeadInputSchema = z.object({
+export const leadInputSchema = z.object({
   message: z
     .string()
     .min(10, "Message must be at least 10 characters")
@@ -23,5 +23,5 @@ export const LeadInputSchema = z.object({
   contact: z.string().max(200).optional(),
 });
 
-export type LeadInput = z.infer<typeof LeadInputSchema>;
+export type LeadInput = z.infer<typeof leadInputSchema>;
 
