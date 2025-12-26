@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Request validation schema
 export const LeadInputSchema = z.object({
   message: z
     .string()
@@ -8,12 +7,11 @@ export const LeadInputSchema = z.object({
     .max(5000, "Message must not exceed 5000 characters")
     .refine(
       (msg) => {
-        // Basic prompt injection detection - reject suspicious patterns
         const suspiciousPatterns = [
           /ignore\s+(previous|all)\s+(instructions|prompts)/i,
           /system\s*:\s*you\s+are/i,
-          /\[INST\]|\[/INST\]/i, // Common prompt injection markers
-          /<\|.*?\|>/i, // Template injection markers
+          /\[INST\]|\[/INST\]/i,
+          /<\|.*?\|>/i,
         ];
         return !suspiciousPatterns.some((pattern) => pattern.test(msg));
       },
