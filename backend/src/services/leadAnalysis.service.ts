@@ -1,3 +1,13 @@
+/**
+ * Lead Analysis Service
+ * 
+ * Orchestrates the analysis pipeline:
+ * 1. Pre-filter (deterministic classification)
+ * 2. LLM inference (if needed)
+ * 3. Post-processing (friction strategy, decay priority, human gate)
+ * 4. Explainability metadata
+ */
+
 import { deterministicClassifier, PreFilterResult } from "../prefilter/deterministic.classifier";
 import { analyzeLead } from "../ai/chains/leadAnalysis.chain";
 import { frictionStrategy } from "../workflow/leadFriction.engine";
@@ -16,10 +26,16 @@ export interface AnalysisResult {
   llm_called: boolean;
 }
 
+/**
+ * Main analysis service
+ */
 export async function analyzeLeadInquiry(
   message: string
 ): Promise<AnalysisResult> {
+  // Sanitize input
   const sanitizedMessage = sanitizeInput(message);
+  
+  // Step 1: Pre-filter (deterministic classification)
   const preFilterResult: PreFilterResult = deterministicClassifier(sanitizedMessage);
   
   let analysis: LeadAnalysis;
@@ -28,10 +44,12 @@ export async function analyzeLeadInquiry(
   const detectedSignals: string[] = [...preFilterResult.signals];
   
   if (preFilterResult.shouldSkipLLM && preFilterResult.analysis) {
+    // Use deterministic result, skip LLM call
     analysis = preFilterResult.analysis;
     decisionReasons.push("Used deterministic pre-filter (skipped LLM call)");
     detectedSignals.push("prefilter_used");
   } else {
+    // Step 2: LLM inference
     llmCalled = true;
     decisionReasons.push("LLM inference required (pre-filter confidence below threshold)");
     detectedSignals.push("llm_inference");
@@ -39,6 +57,7 @@ export async function analyzeLeadInquiry(
     try {
       analysis = await analyzeLead(sanitizedMessage, true);
       
+      // Add LLM-specific signals
       if (analysis.confidence >= 0.85) {
         detectedSignals.push("high_confidence_llm");
         decisionReasons.push(`High confidence LLM result (${(analysis.confidence * 100).toFixed(0)}%)`);
@@ -51,6 +70,7 @@ export async function analyzeLeadInquiry(
       }
     } catch (error) {
       console.error("LLM analysis failed:", error);
+      // Fallback to deterministic result if LLM fails
       if (preFilterResult.analysis) {
         analysis = preFilterResult.analysis;
         decisionReasons.push("LLM failed, using deterministic fallback");
@@ -61,10 +81,12 @@ export async function analyzeLeadInquiry(
     }
   }
   
+  // Step 3: Post-processing
   const frictionAction = frictionStrategy(analysis.primary_friction);
   const decayPriorityValue = decayPriority(analysis.lead_half_life_minutes);
   const humanRequired = requiresHumanReview(analysis);
   
+  // Add post-processing reasons
   if (humanRequired) {
     decisionReasons.push("Human review required based on analysis criteria");
     detectedSignals.push("human_review_triggered");

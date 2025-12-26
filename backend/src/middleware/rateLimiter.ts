@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 
+/**
+ * Simple in-memory rate limiter
+ * For production, consider using Redis-based rate limiting
+ */
+
 interface RateLimitStore {
   [key: string]: {
     count: number;
@@ -9,9 +14,13 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 10;
+// Configuration
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute per IP
 
+/**
+ * Get client identifier (IP address)
+ */
 function getClientId(req: Request): string {
   return (
     (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
@@ -21,19 +30,25 @@ function getClientId(req: Request): string {
   );
 }
 
+/**
+ * Rate limiting middleware
+ */
 export function rateLimiter(req: Request, res: Response, next: NextFunction): void {
   const clientId = getClientId(req);
   const now = Date.now();
   
+  // Clean up expired entries
   Object.keys(store).forEach((key) => {
     if (store[key].resetTime < now) {
       delete store[key];
     }
   });
   
+  // Get or create client record
   const clientRecord = store[clientId];
   
   if (!clientRecord || clientRecord.resetTime < now) {
+    // New window
     store[clientId] = {
       count: 1,
       resetTime: now + RATE_LIMIT_WINDOW_MS,
@@ -41,6 +56,7 @@ export function rateLimiter(req: Request, res: Response, next: NextFunction): vo
     return next();
   }
   
+  // Increment count
   clientRecord.count++;
   
   if (clientRecord.count > RATE_LIMIT_MAX_REQUESTS) {

@@ -1,3 +1,11 @@
+/**
+ * Deterministic Pre-Filter
+ * 
+ * Lightweight rule-based classifier that detects high-confidence patterns
+ * before making expensive LLM calls. Returns structured analysis when
+ * confidence is high enough to skip AI inference.
+ */
+
 import { LeadAnalysis } from "../ai/schemas/leadAnalysis.schema";
 
 export interface PreFilterResult {
@@ -8,6 +16,7 @@ export interface PreFilterResult {
   signals: string[];
 }
 
+// Fixed enum values matching schema
 const INTENT_OPTIONS = [
   "Pricing Information Request",
   "Sample Request",
@@ -27,17 +36,24 @@ const FRICTION_OPTIONS = [
   "low_commitment",
 ] as const;
 
+/**
+ * Deterministic classifier using keyword heuristics
+ */
 export function deterministicClassifier(message: string): PreFilterResult {
   const lowerMessage = message.toLowerCase().trim();
   const reasons: string[] = [];
   const signals: string[] = [];
+  
+  // Normalize message length for analysis
   const messageLength = message.length;
   const hasQuestions = (message.match(/\?/g) || []).length > 0;
   const hasExclamation = message.includes("!");
   
+  // === URGENCY DETECTION ===
   let urgency: typeof URGENCY_OPTIONS[number] = "low";
   let urgencyConfidence = 0.5;
   
+  // High urgency indicators
   const highUrgencyKeywords = [
     "urgent", "asap", "as soon as possible", "immediately", "right now",
     "emergency", "critical", "deadline", "today", "within hours",
@@ -68,6 +84,7 @@ export function deterministicClassifier(message: string): PreFilterResult {
     signals.push("medium_urgency_keywords");
   }
   
+  // === INTENT DETECTION ===
   let intent: string = "General Inquiry";
   let intentConfidence = 0.6;
   
@@ -103,6 +120,7 @@ export function deterministicClassifier(message: string): PreFilterResult {
     signals.push("delivery_keywords");
   }
   
+  // === FRICTION DETECTION ===
   let primaryFriction: typeof FRICTION_OPTIONS[number] = "information_gap";
   let frictionConfidence = 0.6;
   
@@ -136,7 +154,8 @@ export function deterministicClassifier(message: string): PreFilterResult {
     signals.push("low_commitment");
   }
   
-  let leadHalfLifeMinutes = 1440;
+  // === LEAD HALF-LIFE ESTIMATION ===
+  let leadHalfLifeMinutes = 1440; // Default: 24 hours
   
   if (urgency === "high") {
     leadHalfLifeMinutes = 30;
@@ -148,16 +167,20 @@ export function deterministicClassifier(message: string): PreFilterResult {
     leadHalfLifeMinutes = 480;
   }
   
+  // === CONFIDENCE CALCULATION ===
+  // Weighted average of individual confidences
   const overallConfidence = (
     urgencyConfidence * 0.3 +
     intentConfidence * 0.4 +
     frictionConfidence * 0.3
   );
   
+  // Boost confidence if multiple strong signals align
   if (urgencyConfidence > 0.8 && intentConfidence > 0.8) {
     const boostedConfidence = Math.min(0.95, overallConfidence + 0.1);
     reasons.push("High confidence from aligned signals");
     
+    // Only skip LLM if confidence is very high (>= 0.85)
     if (boostedConfidence >= 0.85) {
       return {
         shouldSkipLLM: true,
@@ -175,6 +198,7 @@ export function deterministicClassifier(message: string): PreFilterResult {
     }
   }
   
+  // Default: use LLM for better accuracy
   return {
     shouldSkipLLM: false,
     confidence: overallConfidence,
