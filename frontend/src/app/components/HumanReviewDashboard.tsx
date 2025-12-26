@@ -11,21 +11,26 @@ import {
   Mail,
   Phone,
   Clock,
-  ExternalLink
+  ExternalLink,
 } from 'lucide-react';
 
 export function HumanReviewDashboard() {
   const navigate = useNavigate();
   const { leads, updateLeadStatus } = useLeads();
+
   const [filter, setFilter] = useState<'all' | 'review-required'>('all');
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedAction, setEditedAction] = useState('');
+
   /**
-   * ✅ FIX:
-   * Show ONLY pending leads in the table.
-   * Approved / edited / escalated leads are archived implicitly.
+   * ✅ CORE FIX:
+   * Only show pending leads in the main table.
+   * Approved / edited / escalated leads are implicitly archived.
    */
-  const filteredLeads = leads.filter(lead => {
+  const filteredLeads = leads.filter((lead) => {
     if (lead.status !== 'pending') return false;
 
     if (filter === 'review-required') {
@@ -36,7 +41,7 @@ export function HumanReviewDashboard() {
   });
 
   const selectedLeadData = selectedLead
-    ? leads.find(l => l.id === selectedLead)
+    ? leads.find((l) => l.id === selectedLead)
     : null;
 
   const urgencyColors = {
@@ -65,7 +70,9 @@ export function HumanReviewDashboard() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between">
           <div>
-            <h1 className="text-xl text-gray-900">Human Review Dashboard</h1>
+            <h1 className="text-xl text-gray-900">
+              Human Review Dashboard
+            </h1>
             <p className="text-sm text-gray-600 mt-1">
               Review and manage incoming product inquiries
             </p>
@@ -79,8 +86,8 @@ export function HumanReviewDashboard() {
         </div>
       </div>
 
+      {/* Filters */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex gap-2">
           <button
             onClick={() => setFilter('all')}
@@ -112,8 +119,26 @@ export function HumanReviewDashboard() {
         ) : (
           <div className="bg-white rounded-lg border overflow-hidden">
             <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">
+                    Lead
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">
+                    Urgency
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">
+                    Decay
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3"></th>
+                </tr>
+              </thead>
+
               <tbody className="divide-y divide-gray-200">
-                {filteredLeads.map(lead => (
+                {filteredLeads.map((lead) => (
                   <tr
                     key={lead.id}
                     className="hover:bg-gray-50 cursor-pointer"
@@ -157,7 +182,7 @@ export function HumanReviewDashboard() {
 
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs ${
+                        className={`px-2 py-1 rounded text-xs capitalize ${
                           statusColors[lead.status]
                         }`}
                       >
@@ -180,49 +205,102 @@ export function HumanReviewDashboard() {
       {selectedLeadData && (
         <div className="fixed inset-0 bg-black bg-opacity-25 flex justify-end z-50">
           <div className="bg-white w-full max-w-2xl h-full overflow-y-auto">
+            {/* Header */}
             <div className="p-6 border-b flex justify-between">
               <h2 className="text-lg">Lead Details</h2>
-              <button onClick={() => setSelectedLead(null)}>
+              <button
+                onClick={() => {
+                  setSelectedLead(null);
+                  setIsEditing(false);
+                }}
+              >
                 <X />
               </button>
             </div>
 
+            {/* Content */}
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-700 whitespace-pre-wrap">
                 {selectedLeadData.message}
               </p>
 
+              {/* Actions */}
               {selectedLeadData.status === 'pending' && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      updateLeadStatus(selectedLeadData.id, 'approved');
-                      setSelectedLead(null);
-                    }}
-                    className="w-full bg-green-600 text-white py-2 rounded"
-                  >
-                    Approve
-                  </button>
+                <div className="space-y-3">
+                  {isEditing ? (
+                    <>
+                      <textarea
+                        value={editedAction}
+                        onChange={(e) => setEditedAction(e.target.value)}
+                        rows={3}
+                        className="w-full border rounded-lg p-3 text-sm"
+                        placeholder="Edit recommended action..."
+                      />
 
-                  <button
-                    onClick={() => {
-                      updateLeadStatus(selectedLeadData.id, 'edited');
-                      setSelectedLead(null);
-                    }}
-                    className="w-full bg-blue-600 text-white py-2 rounded"
-                  >
-                    Edit
-                  </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            updateLeadStatus(
+                              selectedLeadData.id,
+                              'edited'
+                            );
+                            setIsEditing(false);
+                            setSelectedLead(null);
+                          }}
+                          className="flex-1 bg-blue-600 text-white py-2 rounded"
+                        >
+                          Save Edit
+                        </button>
 
-                  <button
-                    onClick={() => {
-                      updateLeadStatus(selectedLeadData.id, 'escalated');
-                      setSelectedLead(null);
-                    }}
-                    className="w-full bg-red-600 text-white py-2 rounded"
-                  >
-                    Escalate
-                  </button>
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="flex-1 border py-2 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          updateLeadStatus(
+                            selectedLeadData.id,
+                            'approved'
+                          );
+                          setSelectedLead(null);
+                        }}
+                        className="w-full bg-green-600 text-white py-2 rounded"
+                      >
+                        Approve AI Decision
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsEditing(true);
+                          setEditedAction(
+                            selectedLeadData.aiAnalysis.recommendedAction || ''
+                          );
+                        }}
+                        className="w-full bg-blue-600 text-white py-2 rounded"
+                      >
+                        Edit Recommendation
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          updateLeadStatus(
+                            selectedLeadData.id,
+                            'escalated'
+                          );
+                          setSelectedLead(null);
+                        }}
+                        className="w-full bg-red-600 text-white py-2 rounded"
+                      >
+                        Escalate
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
