@@ -1,16 +1,25 @@
 export const leadAnalysisPrompt = `
-You are an expert sales analyst for an Indian construction material brand.
+Analyze this construction material inquiry.
 
-Analyze the inquiry and determine:
-- Buying intent
-- Urgency
-- Primary friction preventing conversion
-- Estimated lead half-life in minutes
-- Confidence score (0 to 1)
+INTENT (choose one): Pricing Information Request, Sample Request, Purchase Intent, Technical Specification Inquiry, Delivery Timeline Inquiry, General Inquiry
 
-Think like a human sales expert.
-Respond only in the requested structured format.
+URGENCY (choose one): low, medium, high
 
-Customer inquiry:
-"{lead}"
+PRIMARY_FRICTION (choose one): budget_uncertainty, choice_overload, trust_validation, timeline_pressure, information_gap, low_commitment
+
+LEAD_HALF_LIFE_MINUTES: number (30-1440)
+
+CONFIDENCE: number 0.0-1.0
+
+Inquiry: "{lead}"
+`;
+
+export const leadAnalysisRetryPrompt = `
+Re-analyze with higher precision. Use same enums.
+
+INTENT: Pricing Information Request | Sample Request | Purchase Intent | Technical Specification Inquiry | Delivery Timeline Inquiry | General Inquiry
+URGENCY: low | medium | high  
+PRIMARY_FRICTION: budget_uncertainty | choice_overload | trust_validation | timeline_pressure | information_gap | low_commitment
+
+Inquiry: "{lead}"
 `;

@@ -16,6 +16,12 @@ interface BackendResponse {
   friction_action: string;
   decay_priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   human_required: boolean;
+  // Optional explainability metadata (new)
+  decision_reasons?: string[];
+  detected_signals?: string[];
+  _meta?: {
+    llm_called?: boolean;
+  };
 }
 
 // Cache key generator - uses message content as key
